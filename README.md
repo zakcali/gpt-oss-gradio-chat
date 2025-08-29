@@ -1,26 +1,40 @@
 # gpt-oss-gradio-chat
-gradio chat interface using either openAI or Groq api
 
-if you want to serve to LAN clients, then last line is:
+A Gradio chat interface that uses either the OpenAI or Groq API.
 
-    demo.launch(server_name="192.168.0.xx", server_port=7860) // set server_name="192.168.0.xx" according to your LAN ip
+## Running the Application
 
-if you want to serve on your machine, then
+You can launch the application in several ways depending on your needs.
 
-    demo.launch()
+### To run locally on your machine:
+Use the following line in the script:
+```python
+demo.launch()
+```
 
-if you want to serve to everybody connected to internet, then:
-    
-    demo.launch(share= True) //  creates an url for you
+### To serve to other devices on your local network (LAN):
+Modify the last line to include your machine's local IP address.
+```python
+# Replace "192.168.0.xx" with your actual LAN IP address
+demo.launch(server_name="192.168.0.xx", server_port=7860)
+```
 
-reference: https://www.gradio.app/guides/sharing-your-app 
+### To share publicly over the internet:
+Set the `share` parameter to `True`. Gradio will generate a temporary public URL for you.
+```python
+demo.launch(share=True)
+```
+For more details, see the official Gradio guide on [Sharing Your App](https://www.gradio.app/guides/sharing-your-app).
 
-"gpt-oss-gradio-Groq.py" works on every machine provided with an internet connection
+---
 
+## Script Information
 
-"gpt-oss-gradio-openai.py" works on local machine. it works on my 4x RTX 3090 (96 GB VRAM) Linux machine by using command
+*   `gpt-oss-gradio-Groq.py`: This script uses the Groq API and should run on any machine with an internet connection.
 
+*   `gpt-oss-gradio-openai.py`: This script is designed to run a local model and requires substantial hardware. For example, it has been tested on a Linux machine with 4x RTX 3090 GPUs (96 GB total VRAM) using the following `vllm` command to serve the model:
+
+    ```bash
     vllm serve openai/gpt-oss-120b --tensor-parallel-size 4 --async-scheduling
-
-reference: https://huggingface.co/openai/gpt-oss-120b/discussions/122
-
+    ```
+    Reference: [Hugging Face Discussion](https://huggingface.co/openai/gpt-oss-120b/discussions/122)
