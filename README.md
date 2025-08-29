@@ -52,7 +52,7 @@ For more details, see the official Gradio guide on [Sharing Your App](https://ww
 
 *   `gpt-oss-gradio-Groq.py`: This script uses the Groq API and should run on any machine with an internet connection.
 
-*   `gpt-oss-gradio-openai.py`: This script is designed to run a local model and requires substantial hardware. For example, it has been tested on a Linux machine with 4x RTX 3090 GPUs (96 GB total VRAM) using the following `vllm` command to serve the model:
+*   `gpt-oss-gradio-openai.py`: This script is designed to run a local model and requires substantial hardware. No API key is required for this script. For example, it has been tested on a Linux machine with 4x RTX 3090 GPUs (96 GB total VRAM) using the following `vllm` command to serve the model:
 
     ```bash
     vllm serve openai/gpt-oss-120b --tensor-parallel-size 4 --async-scheduling
