@@ -2,6 +2,26 @@
 
 A Gradio chat interface that uses either the OpenAI or Groq API.
 
+## Setup
+
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/zakcali/gpt-oss-gradio-chat.git
+    cd gpt-oss-gradio-chat
+    ```
+
+2.  Install the required packages:
+    ```bash
+    pip install -r requirements.txt
+    ```
+## Configuration
+
+Before running the scripts, you need to set your API keys as environment variables.
+
+### For the Groq script:
+```bash
+export GROQ_API_KEY
+
 ## Running the Application
 
 You can launch the application in several ways depending on your needs.
@@ -38,3 +58,5 @@ For more details, see the official Gradio guide on [Sharing Your App](https://ww
     vllm serve openai/gpt-oss-120b --tensor-parallel-size 4 --async-scheduling
     ```
     Reference: [Hugging Face Discussion](https://huggingface.co/openai/gpt-oss-120b/discussions/122)
+
+This script interfaces with a locally served model using [vllm](https://github.com/vllm-project/vllm), a high-throughput LLM serving library. Ensure you have `vllm` installed and a compatible hardware setup before running the server command.
