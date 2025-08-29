@@ -22,10 +22,9 @@ Before running the scripts, you need to set your API keys as environment variabl
 ### For the Groq script:
 ```bash
 export GROQ_API_KEY
-
+```
 
 ## Running the Application
-
 
 You can launch the application in several ways depending on your needs.
 
@@ -48,8 +47,6 @@ Set the `share` parameter to `True`. Gradio will generate a temporary public URL
 demo.launch(share=True)
 ```
 For more details, see the official Gradio guide on [Sharing Your App](https://www.gradio.app/guides/sharing-your-app).
-
----
 
 ## Script Information
 
