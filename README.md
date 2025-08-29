@@ -1,6 +1,6 @@
 # gpt-oss-gradio-chat
 
-A Gradio chat interface that uses either the OpenAI or Groq API.
+A Gradio chat interface for gpt-oss models that uses either the OpenAI or Groq API.
 
 ## Setup
 
