@@ -2,9 +2,8 @@
 gradio chat interface using either openAI or Groq api
 
 last line is:
-´´´
-demo.launch(server_name="192.168.0.xx", server_port=7860)
-´´´
+    demo.launch(server_name="192.168.0.xx", server_port=7860)
+
 
 if you want to serve on your machine demo.launch() is enough
 
