@@ -15,3 +15,11 @@ if you want to serve to everybody connected to internet, then:
 
 reference: https://www.gradio.app/guides/sharing-your-app 
 
+"gpt-oss-gradio-Groq.py" works every machine provided with an internet connection
+
+
+"gpt-oss-gradio-openai.py" works on local machine. it works on my 4x RTX 3090 (96 GB VRAM) Linux machine by using command
+
+    vllm serve openai/gpt-oss-120b --tensor-parallel-size 4 --async-scheduling
+
+reference: https://huggingface.co/openai/gpt-oss-120b/discussions/122#68af5cf30118f9b62457caa5
