@@ -1,7 +1,7 @@
 # gpt-oss-gradio-chat
 gradio chat interface using either openAI or Groq api
 
-if you want to serve to LAN clients, than set server_name="192.168.0.xx" according to your LAN ip, then last line is:
+if you want to serve to LAN clients, then last line is: set server_name="192.168.0.xx" according to your LAN ip:
 
     demo.launch(server_name="192.168.0.xx", server_port=7860)
 
