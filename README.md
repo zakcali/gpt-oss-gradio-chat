@@ -23,6 +23,7 @@ Before running the scripts, you need to set your API keys as environment variabl
 ```bash
 export GROQ_API_KEY
 
+
 ## Running the Application
 
 
