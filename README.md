@@ -17,7 +17,7 @@ A Gradio chat interface that uses either the OpenAI or Groq API.
 
 ## Configuration
 
-Before running the "gpt-oss-gradio-Groq.py" script, you need to set your API keys as environment variables.
+Before running the "gpt-oss-gradio-Groq.py" script, you need to set your API key as environment variables.
 
 ### For the Groq script:
 ```bash
