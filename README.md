@@ -14,6 +14,7 @@ A Gradio chat interface that uses either the OpenAI or Groq API.
     ```bash
     pip install -r requirements.txt
     ```
+
 ## Configuration
 
 Before running the scripts, you need to set your API keys as environment variables.
@@ -23,6 +24,7 @@ Before running the scripts, you need to set your API keys as environment variabl
 export GROQ_API_KEY
 
 ## Running the Application
+
 
 You can launch the application in several ways depending on your needs.
 
