@@ -1,0 +1,5 @@
+gradio
+openai
+groq
+# Add vllm if it's a direct dependency of the script,
+# though it's often installed separately in its own environment.
