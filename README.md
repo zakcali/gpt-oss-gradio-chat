@@ -11,8 +11,9 @@ if you want to serve on your machine, then
 
 if you want to serve to LAN clients, than set server_name="192.168.0.xx" according to your LAN ip
 
-if you want to serve to everybody connected to internet, then 
+if you want to serve to everybody connected to internet, then which creates an url for you
     
     demo.launch(share= True)
 
+reference: https://www.gradio.app/guides/sharing-your-app 
 
