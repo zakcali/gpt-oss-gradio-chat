@@ -9,9 +9,9 @@ if you want to serve on your machine, then
 
     demo.launch()
 
-if you want to serve to everybody connected to internet, then which creates an url for you
+if you want to serve to everybody connected to internet, then:
     
-    demo.launch(share= True)
+    demo.launch(share= True) //  creates an url for you
 
 reference: https://www.gradio.app/guides/sharing-your-app 
 
