@@ -52,10 +52,9 @@ def chat_with_openai(message, history, instructions,
                 full_content += delta.content
                 history[-1]["content"] = full_content
                 # Yield updates to the Gradio UI
-                yield history, ""
+                yield history, None
 
         # Final update to ensure the full message is set
-        history[-1]["content"] = full_content
         yield history, ""
 
     except Exception as e:
