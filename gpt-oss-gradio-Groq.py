@@ -1,6 +1,7 @@
 import os
 import gradio as gr
 from groq import Groq
+import time
 
 # Initialize the Groq client (API key from environment variable)
 client = Groq(
@@ -51,12 +52,18 @@ def chat_with_groq(message, history, model_choice, instructions,
 
         completion = client.chat.completions.create(**request_params)
         full_content = ""
+        last_yield_time = time.time()
+        flush_interval_s = 0.04  # ~25 FPS UI updates
+
         for chunk in completion:
             delta = chunk.choices[0].delta
             if delta.content:
                 full_content += delta.content
                 history[-1]["content"] = full_content
-                yield history, None
+                now = time.time()
+                if now - last_yield_time >= flush_interval_s:
+                    last_yield_time = now
+                    yield history, None
 
         # Final update
         yield history, ""
@@ -79,7 +86,9 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
                 msg = gr.Textbox(placeholder="Type a message...", scale=4, show_label=False)
                 send_btn = gr.Button("Send", scale=1)
 
-            clear_btn = gr.Button("Clear Chat")
+            with gr.Row():
+                stop_btn = gr.Button("Stop", scale=1)
+                clear_btn = gr.Button("Clear Chat", scale=1)
 
         with gr.Column(scale=1):
             model_choice = gr.Radio(
@@ -101,12 +110,19 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
 
     inputs = [msg, chatbot, model_choice, instructions,
               temperature, max_tokens, effort]
-    
-    msg.submit(chat_with_groq, inputs, [chatbot, msg])
-    send_btn.click(chat_with_groq, inputs, [chatbot, msg])
-    clear_btn.click(lambda: [], outputs=chatbot)
 
+    # Wire events and keep handles for cancellation
+    e_submit = msg.submit(chat_with_groq, inputs, [chatbot, msg])
+    e_click = send_btn.click(chat_with_groq, inputs, [chatbot, msg])
+
+    # Stop cancels any in-flight generation without changing UI state
+    stop_btn.click(fn=lambda: None, cancels=[e_submit, e_click])
+
+    # Clear also cancels then clears the chat
+    clear_btn.click(lambda: [], outputs=chatbot, cancels=[e_submit, e_click])
+
+# Enable queue for smooth streaming and cancellation support
+demo.queue()
 
 if __name__ == "__main__":
     demo.launch()
-
