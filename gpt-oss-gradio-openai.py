@@ -1,14 +1,14 @@
 import gradio as gr
 from openai import OpenAI
+import time  # <-- 1. Import the 'time' module
 
-# 1. Initialize the OpenAI client to connect to a local server
-#    This replaces the Groq client initialization.
+# Initialize the OpenAI client to connect to a local server
 client = OpenAI(
     base_url="http://localhost:8000/v1",  # Point to your local server
     api_key="EMPTY"                       # Use a placeholder API key
 )
 
-# 2. Main chat function is renamed and adapted for the OpenAI client
+# Main chat function adapted for the OpenAI client
 def chat_with_openai(message, history, instructions,
                      temperature, max_tokens, effort):
     
@@ -27,34 +27,38 @@ def chat_with_openai(message, history, instructions,
         messages.append({"role": "system", "content": instructions})
 
     for m in history:
-        # Don't include the empty assistant placeholder in the API call
         if m["role"] == "assistant" and m["content"] == "":
             continue
         messages.append({"role": m["role"], "content": m["content"]})
 
     try:
-        # 3. The API call now uses the OpenAI client.
-        #    The model is hardcoded, and custom params are simplified.
         completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b", # Specify the model served locally
+            model="openai/gpt-oss-120b",
             messages=messages,
             temperature=temperature,
-            max_tokens=int(max_tokens), # Ensure max_tokens is an integer
+            max_tokens=int(max_tokens),
             stream=True,
-            reasoning_effort=effort, # Pass the reasoning_effort parameter
+            reasoning_effort=effort,
         )
         
         full_content = ""
-        # The streaming logic is the same, as both libraries follow the same pattern
+        # --- 2. ADD UI THROTTLING LOGIC ---
+        last_yield_time = time.time()
+        flush_interval_s = 0.04  # Corresponds to ~25 UI updates per second
+
         for chunk in completion:
             delta = chunk.choices[0].delta
             if delta and delta.content:
                 full_content += delta.content
                 history[-1]["content"] = full_content
-                # Yield updates to the Gradio UI
-                yield history, None
+                
+                # Check if it's time to update the UI
+                now = time.time()
+                if now - last_yield_time >= flush_interval_s:
+                    last_yield_time = now
+                    yield history, None
 
-        # Final update to ensure the full message is set
+        # Ensure the final, complete response is always sent
         yield history, ""
 
     except Exception as e:
@@ -74,11 +78,13 @@ with gr.Blocks(title="💬 Local LLM Chatbot") as demo:
             with gr.Row():
                 msg = gr.Textbox(placeholder="Type a message...", scale=4, show_label=False)
                 send_btn = gr.Button("Send", scale=1)
-
-            clear_btn = gr.Button("Clear Chat")
+            
+            # --- 3. ADD STOP BUTTON AND REARRANGE BUTTONS ---
+            with gr.Row():
+                stop_btn = gr.Button("Stop", scale=1)
+                clear_btn = gr.Button("Clear Chat", scale=1)
 
         with gr.Column(scale=1):
-            # 4. UI Simplified: Removed the model selector as we target a specific local model
             gr.Markdown("### Model: `openai/gpt-oss-120b`")
             
             instructions = gr.Textbox(
@@ -96,15 +102,22 @@ with gr.Blocks(title="💬 Local LLM Chatbot") as demo:
             temperature = gr.Slider(0.0, 2.0, value=1.0, step=0.1, label="Temperature")
             max_tokens = gr.Slider(100, 65535, value=8192, step=256, label="Max Tokens")
 
-    # 5. The list of inputs for the function is updated (model_choice removed)
     inputs = [msg, chatbot, instructions,
               temperature, max_tokens, effort]
     
-    # 6. Event handlers now call the new 'chat_with_openai' function
-    msg.submit(chat_with_openai, inputs, [chatbot, msg])
-    send_btn.click(chat_with_openai, inputs, [chatbot, msg])
-    clear_btn.click(lambda: ([], ""), outputs=[chatbot, msg])
+    # --- 4. WIRE UP EVENTS FOR CANCELLATION ---
+    # Save event handles to be able to cancel them
+    e_submit = msg.submit(chat_with_openai, inputs, [chatbot, msg])
+    e_click = send_btn.click(chat_with_openai, inputs, [chatbot, msg])
 
+    # Stop button cancels any in-progress generation
+    stop_btn.click(fn=lambda: None, cancels=[e_submit, e_click], queue=False)
+
+    # Clear button also cancels in-progress generation before clearing
+    clear_btn.click(lambda: [], outputs=chatbot, cancels=[e_submit, e_click], queue=False)
+
+# --- 5. ENABLE THE QUEUE FOR SMOOTH STREAMING AND CANCELLATION ---
+demo.queue()
 
 if __name__ == "__main__":
     demo.launch(server_name="192.168.0.xx", server_port=7860)
