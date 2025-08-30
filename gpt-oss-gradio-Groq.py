@@ -56,10 +56,9 @@ def chat_with_groq(message, history, model_choice, instructions,
             if delta.content:
                 full_content += delta.content
                 history[-1]["content"] = full_content
-                yield history, ""
+                yield history, None
 
         # Final update
-        history[-1]["content"] = full_content
         yield history, ""
 
     except Exception as e:
@@ -110,3 +109,4 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
 
 if __name__ == "__main__":
     demo.launch()
+
