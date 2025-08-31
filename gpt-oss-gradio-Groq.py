@@ -45,6 +45,7 @@ def chat_with_groq(message, history, model_choice, instructions,
         # Only add reasoning_effort if model supports it
         if model_choice == "openai/gpt-oss-120b":
             request_params["reasoning_effort"] = effort
+            request_params["top_p"] = 1.0
         elif model_choice == "qwen/qwen3-32b":
             request_params["reasoning_format"] = "hidden"
         elif model_choice == "deepseek-r1-distill-llama-70b":
@@ -126,3 +127,4 @@ demo.queue()
 
 if __name__ == "__main__":
     demo.launch()
+
