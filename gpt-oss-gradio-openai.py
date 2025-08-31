@@ -54,16 +54,22 @@ def chat_with_openai(message, history, instructions,
                 continue
             
             delta = chunk.choices[0].delta
+            # --- START OF MODIFIED EXTRACTION LOGIC ---
+            
+            # Use getattr() for a safe and concise way to get chunk content
+            new_content = getattr(delta, "content", None) or None
+            new_reasoning = getattr(delta, "reasoning_content", None) or None
 
-            if delta.content:
-                full_content += delta.content
+            # Accumulate content if any was extracted
+            if new_content is not None:
+                full_content += new_content
                 history[-1]["content"] = full_content
 
-            # --- START OF CORRECTED LOGIC ---
-            # Based on your debugging, the attribute is named 'reasoning_content'
-            if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
-                reasoning_content += delta.reasoning_content
-            # --- END OF CORRECTED LOGIC ---
+            # Accumulate reasoning if any was extracted
+            if new_reasoning is not None:
+                reasoning_content += new_reasoning
+                
+            # --- END OF MODIFIED EXTRACTION LOGIC ---
 
             now = time.time()
             if now - last_yield_time >= flush_interval_s:
