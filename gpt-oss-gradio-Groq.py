@@ -58,20 +58,23 @@ def chat_with_groq(message, history, model_choice, instructions,
                 continue
             
             delta = chunk.choices[0].delta
-
-            # --- START OF CORRECTED LOGIC ---
-
-            # 1. Accumulate main content if it exists
-            if delta.content:
-                full_content += delta.content
+            # --- START OF MODIFIED EXTRACTION LOGIC ---
+            
+            # Use getattr() for a safe and concise way to get chunk content
+            new_content = getattr(delta, "content", None) or None
+            new_reasoning = getattr(delta, "reasoning", None) or None
+            
+            # Accumulate content if any was extracted
+            if new_content is not None:
+                full_content += new_content
                 history[-1]["content"] = full_content
 
-            # 2. Accumulate reasoning content if it exists
-            if delta.reasoning:
-                reasoning_content += delta.reasoning
-
-            # --- END OF CORRECTED LOGIC ---
-
+            # Accumulate reasoning if any was extracted
+            if new_reasoning is not None:
+                reasoning_content += new_reasoning
+                
+            # --- END OF MODIFIED EXTRACTION LOGIC ---
+            
             now = time.time()
             if now - last_yield_time >= flush_interval_s:
                 last_yield_time = now
