@@ -60,3 +60,9 @@ For more details, see the official Gradio guide on [Sharing Your App](https://ww
     Reference: [Hugging Face Discussion](https://huggingface.co/openai/gpt-oss-120b/discussions/122)
 
 This script interfaces with a locally served model using [vllm](https://github.com/vllm-project/vllm), a high-throughput LLM serving library. Ensure you have `vllm` installed and a compatible hardware setup before running the server command.  No API key is required for this script.
+
+## Additional information for GPT-OSS models
+
+Default top_p is 1.0
+
+Displays reasoning_content in a separate box
