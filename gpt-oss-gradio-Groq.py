@@ -93,7 +93,7 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
 
     with gr.Row():
         with gr.Column(scale=3):
-            chatbot = gr.Chatbot(height=500, type="messages")
+            chatbot = gr.Chatbot(height=500, type="messages", show_copy_button=True)
             with gr.Row():
                 msg = gr.Textbox(placeholder="Type a message...", scale=4, show_label=False)
                 send_btn = gr.Button("Send", scale=1)
