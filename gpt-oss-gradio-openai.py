@@ -1,6 +1,13 @@
+import os
 import gradio as gr
 from openai import OpenAI
 import time
+
+# Create a dedicated directory for temporary chat downloads
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMP_DIR = os.path.join(APP_DIR, "temp")
+os.makedirs(TEMP_DIR, exist_ok=True)
+print(f"Temporary chat logs will be saved in: {TEMP_DIR}")
 
 # Initialize the OpenAI client to connect to a local server
 client = OpenAI(
@@ -8,11 +15,34 @@ client = OpenAI(
     api_key="EMPTY"
 )
 
+def clear_temp_folder():
+    """Deletes all files in the TEMP_DIR and returns a status message."""
+    count = 0
+    try:
+        for filename in os.listdir(TEMP_DIR):
+            file_path = os.path.join(TEMP_DIR, filename)
+            # Make sure it's a file before trying to delete
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                count += 1
+        
+        if count > 0:
+            return f"✅ Cleared {count} file(s) from the temp downloads directory."
+        else:
+            return "ℹ️ Temp downloads directory is already empty."
+            
+    except Exception as e:
+        print(f"Error clearing temp folder: {e}")
+        return f"❌ Error clearing temp folder: {e}"
+
+
 def chat_with_openai(message, history, instructions,
                      temperature, max_tokens, effort):
     
+    initial_download_update = gr.update(visible=False)
+
     if not message.strip():
-        return history, "", "*No reasoning generated yet...*"
+        return history, "", "*No reasoning generated yet...*", initial_download_update
 
     history = history + [
         {"role": "user", "content": message},
@@ -29,11 +59,6 @@ def chat_with_openai(message, history, instructions,
         messages.append({"role": m["role"], "content": m["content"]})
 
     try:
-        # Note: The 'reasoning_effort' parameter might be passed as an 'extra_body'
-        # parameter if the library doesn't officially support it. However, if it works
-        # as a top-level argument for your server, you can leave it.
-        # For max compatibility, it would look like this:
-        # extra_body={"reasoning_effort": effort}
         completion = client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=messages,
@@ -41,7 +66,7 @@ def chat_with_openai(message, history, instructions,
             top_p=1.0,
             max_tokens=int(max_tokens),
             stream=True,
-            reasoning_effort=effort, # Assuming your local server accepts this
+            reasoning_effort=effort,
         )
         
         full_content = ""
@@ -54,37 +79,40 @@ def chat_with_openai(message, history, instructions,
                 continue
             
             delta = chunk.choices[0].delta
-            # --- START OF MODIFIED EXTRACTION LOGIC ---
-            
-            # Use getattr() for a safe and concise way to get chunk content
             new_content = getattr(delta, "content", None) or None
-            new_reasoning = getattr(delta, "reasoning_content", None) or None
+            # Note: The local server might use 'reasoning' or 'reasoning_content'
+            new_reasoning = getattr(delta, "reasoning_content", None) or getattr(delta, "reasoning", None)
 
-            # Accumulate content if any was extracted
             if new_content is not None:
                 full_content += new_content
                 history[-1]["content"] = full_content
 
-            # Accumulate reasoning if any was extracted
             if new_reasoning is not None:
                 reasoning_content += new_reasoning
                 
-            # --- END OF MODIFIED EXTRACTION LOGIC ---
-
             now = time.time()
             if now - last_yield_time >= flush_interval_s:
                 last_yield_time = now
-                yield history, None, reasoning_content
+                yield history, None, reasoning_content, initial_download_update
 
-        yield history, "", reasoning_content
+        timestamp = int(time.time())
+        base_filename = f"chat_response_{timestamp}.md"
+        output_filepath = os.path.join(TEMP_DIR, base_filename)
+        
+        with open(output_filepath, "w", encoding="utf-8") as f:
+            f.write(full_content)
+        
+        final_download_update = gr.update(visible=True, value=output_filepath)
+        
+        yield history, "", reasoning_content, final_download_update
 
     except Exception as e:
         error_message = f"❌ An error occurred: {str(e)}"
         history[-1]["content"] = error_message
-        yield history, "", f"An error occurred: {e}"
+        yield history, "", f"An error occurred: {e}", initial_download_update
 
 
-# --- Gradio UI (No changes needed here) ---
+# --- Gradio UI  ---
 with gr.Blocks(title="💬 Local LLM Chatbot") as demo:
     gr.Markdown("# 💬 Chatbot (Powered by Local OpenAI-Compatible API)")
     with gr.Row():
@@ -96,6 +124,9 @@ with gr.Blocks(title="💬 Local LLM Chatbot") as demo:
             with gr.Row():
                 stop_btn = gr.Button("Stop", scale=1)
                 clear_btn = gr.Button("Clear Chat", scale=1)
+                clear_temp_btn = gr.Button("🧹 Clear Downloads", scale=1)
+                download_btn = gr.DownloadButton("⬇️ Download Last Response", visible=False, scale=2)
+
         with gr.Column(scale=1):
             gr.Markdown("### Model: `openai/gpt-oss-120b`")
             instructions = gr.Textbox(label="System Instructions", value="You are a helpful assistant.", lines=3)
@@ -105,13 +136,28 @@ with gr.Blocks(title="💬 Local LLM Chatbot") as demo:
             thoughts_box = gr.Markdown(label="🧠 Model Thoughts", value="*Reasoning will appear here...*")
 
     inputs = [msg, chatbot, instructions, temperature, max_tokens, effort]
-    outputs = [chatbot, msg, thoughts_box]
+    outputs = [chatbot, msg, thoughts_box, download_btn]
+
     e_submit = msg.submit(chat_with_openai, inputs, outputs)
     e_click = send_btn.click(chat_with_openai, inputs, outputs)
+    
     stop_btn.click(fn=lambda: None, cancels=[e_submit, e_click], queue=False)
-    clear_btn.click(lambda: ([], "*Reasoning will appear here...*"), outputs=[chatbot, thoughts_box], cancels=[e_submit, e_click], queue=False)
+    
+    clear_btn.click(
+        lambda: ([], "*Reasoning will appear here...*", gr.update(visible=False)), 
+        outputs=[chatbot, thoughts_box, download_btn], 
+        cancels=[e_submit, e_click], 
+        queue=False
+    )
+    
+    clear_temp_btn.click(
+        fn=lambda: (clear_temp_folder(), gr.update(visible=False)),
+        inputs=None,
+        outputs=[thoughts_box, download_btn],
+        queue=False
+    )
 
 demo.queue()
 
 if __name__ == "__main__":
-    demo.launch(server_name="192.168.0.xx", server_port=7860)
+    demo.launch(server_name="192.168.0.35", server_port=7860)
