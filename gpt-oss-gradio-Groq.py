@@ -3,17 +3,46 @@ import gradio as gr
 from groq import Groq
 import time
 
+# --- MODIFICATION START: Directory Setup for Temporary Files ---
+# Create a dedicated directory for temporary chat downloads
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMP_DIR = os.path.join(APP_DIR, "temp")
+os.makedirs(TEMP_DIR, exist_ok=True)
+print(f"Temporary chat logs will be saved in: {TEMP_DIR}")
+# --- MODIFICATION END ---
+
 # Initialize the Groq client (API key from environment variable)
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
 )
 
+# --- MODIFICATION START: New function to clear the temp directory ---
+def clear_temp_folder():
+    """Deletes all files in the TEMP_DIR and returns a status message."""
+    count = 0
+    try:
+        for filename in os.listdir(TEMP_DIR):
+            file_path = os.path.join(TEMP_DIR, filename)
+            # Make sure it's a file before trying to delete
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                count += 1
+        
+        if count > 0:
+            return f"✅ Cleared {count} file(s) from the temp downloads directory."
+        else:
+            return "ℹ️ Temp downloads directory is already empty."
+            
+    except Exception as e:
+        print(f"Error clearing temp folder: {e}")
+        return f"❌ Error clearing temp folder: {e}"
+# --- MODIFICATION END ---
+
+
 # Main chat function
 def chat_with_groq(message, history, model_choice, instructions,
                    temperature, max_tokens, effort):
     
-    # --- MODIFICATION: Add a placeholder for the download button update ---
-    # We will return 4 values now, so we need to match that in all return paths.
     initial_download_update = gr.update(visible=False)
 
     if not message.strip():
@@ -34,8 +63,6 @@ def chat_with_groq(message, history, model_choice, instructions,
         messages.append({"role": m["role"], "content": m["content"]})
 
     try:
-        # --- MODIFICATION: Hide download button at the start of generation ---
-        # This ensures the button from a previous run disappears immediately.
         yield history, None, "*Reasoning...*", initial_download_update
 
         request_params = dict(
@@ -80,17 +107,18 @@ def chat_with_groq(message, history, model_choice, instructions,
                 last_yield_time = now
                 yield history, None, reasoning_content, initial_download_update
 
-        # --- MODIFICATION START: Save file and prepare download button ---
-        # This code runs AFTER the streaming loop is complete.
+        # --- MODIFICATION START: Save file to temp dir and prepare download button ---
         timestamp = int(time.time())
-        output_filename = f"chat_response_{timestamp}.md"
+        base_filename = f"chat_response_{timestamp}.md"
+        # Create the full path inside the temporary directory
+        output_filepath = os.path.join(TEMP_DIR, base_filename)
         
-        # Save the final content to a markdown file
-        with open(output_filename, "w", encoding="utf-8") as f:
+        # Save the final content to the markdown file in the temp directory
+        with open(output_filepath, "w", encoding="utf-8") as f:
             f.write(full_content)
         
-        # Create the update object for the download button
-        final_download_update = gr.update(visible=True, value=output_filename)
+        # Create the update object for the download button, pointing to the new path
+        final_download_update = gr.update(visible=True, value=output_filepath)
         
         # Final yield to show the completed response and the download button
         yield history, "", reasoning_content, final_download_update
@@ -102,7 +130,7 @@ def chat_with_groq(message, history, model_choice, instructions,
         yield history, "", f"An error occurred: {e}", initial_download_update
 
 
-# Gradio UI (Updated with download button)
+# Gradio UI (Updated with download button and clear downloads button)
 with gr.Blocks(title="💬 Groq Chatbot") as demo:
     gr.Markdown("# 💬 Chatbot (Powered by Groq)")
 
@@ -115,9 +143,10 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
             with gr.Row():
                 stop_btn = gr.Button("Stop", scale=1)
                 clear_btn = gr.Button("Clear Chat", scale=1)
-                # --- MODIFICATION: Add the download button ---
+                # --- MODIFICATION START: Add Clear Downloads button ---
+                clear_temp_btn = gr.Button("🧹 Clear Downloads", scale=1)
                 download_btn = gr.DownloadButton("⬇️ Download Last Response", visible=False, scale=2)
-
+                # --- MODIFICATION END ---
 
         with gr.Column(scale=1):
             model_choice = gr.Radio(
@@ -138,7 +167,6 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
     inputs = [msg, chatbot, model_choice, instructions,
               temperature, max_tokens, effort]
     
-    # --- MODIFICATION: Add download_btn to the outputs list ---
     outputs = [chatbot, msg, thoughts_box, download_btn]
 
     e_submit = msg.submit(chat_with_groq, inputs, outputs)
@@ -146,12 +174,21 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
 
     stop_btn.click(fn=lambda: None, cancels=[e_submit, e_click])
 
-    # --- MODIFICATION: Update clear_btn to also hide the download button ---
     clear_btn.click(
         lambda: ([], "*Reasoning from gpt-oss-120b will appear here...*", gr.update(visible=False)), 
         outputs=[chatbot, thoughts_box, download_btn], 
         cancels=[e_submit, e_click]
     )
+
+    # --- MODIFICATION START: Add event handler for the new clear temp button ---
+    # This will clear the temp folder and also hide the download button
+    clear_temp_btn.click(
+        fn=lambda: (clear_temp_folder(), gr.update(visible=False)),
+        inputs=None,
+        outputs=[thoughts_box, download_btn]
+    )
+    # --- MODIFICATION END ---
+
 
 demo.queue()
 
