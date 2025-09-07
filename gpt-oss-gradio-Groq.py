@@ -12,8 +12,12 @@ client = Groq(
 def chat_with_groq(message, history, model_choice, instructions,
                    temperature, max_tokens, effort):
     
+    # --- MODIFICATION: Add a placeholder for the download button update ---
+    # We will return 4 values now, so we need to match that in all return paths.
+    initial_download_update = gr.update(visible=False)
+
     if not message.strip():
-        return history, "", "*No reasoning generated yet...*"
+        return history, "", "*No reasoning generated yet...*", initial_download_update
 
     history = history + [
         {"role": "user", "content": message},
@@ -30,6 +34,10 @@ def chat_with_groq(message, history, model_choice, instructions,
         messages.append({"role": m["role"], "content": m["content"]})
 
     try:
+        # --- MODIFICATION: Hide download button at the start of generation ---
+        # This ensures the button from a previous run disappears immediately.
+        yield history, None, "*Reasoning...*", initial_download_update
+
         request_params = dict(
             model=model_choice,
             messages=messages,
@@ -53,41 +61,48 @@ def chat_with_groq(message, history, model_choice, instructions,
         flush_interval_s = 0.04
 
         for chunk in completion:
-            # Check for choices and delta, which might be empty in some chunks
             if not chunk.choices:
                 continue
             
             delta = chunk.choices[0].delta
-            # --- START OF MODIFIED EXTRACTION LOGIC ---
-            
-            # Use getattr() for a safe and concise way to get chunk content
             new_content = getattr(delta, "content", None) or None
             new_reasoning = getattr(delta, "reasoning", None) or None
             
-            # Accumulate content if any was extracted
             if new_content is not None:
                 full_content += new_content
                 history[-1]["content"] = full_content
 
-            # Accumulate reasoning if any was extracted
             if new_reasoning is not None:
                 reasoning_content += new_reasoning
                 
-            # --- END OF MODIFIED EXTRACTION LOGIC ---
-            
             now = time.time()
             if now - last_yield_time >= flush_interval_s:
                 last_yield_time = now
-                yield history, None, reasoning_content
+                yield history, None, reasoning_content, initial_download_update
 
-        yield history, "", reasoning_content
+        # --- MODIFICATION START: Save file and prepare download button ---
+        # This code runs AFTER the streaming loop is complete.
+        timestamp = int(time.time())
+        output_filename = f"chat_response_{timestamp}.md"
+        
+        # Save the final content to a markdown file
+        with open(output_filename, "w", encoding="utf-8") as f:
+            f.write(full_content)
+        
+        # Create the update object for the download button
+        final_download_update = gr.update(visible=True, value=output_filename)
+        
+        # Final yield to show the completed response and the download button
+        yield history, "", reasoning_content, final_download_update
+        # --- MODIFICATION END ---
+
 
     except Exception as e:
         error_message = f"❌ Error: {str(e)}"
-        yield history, "", f"An error occurred: {e}"
+        yield history, "", f"An error occurred: {e}", initial_download_update
 
 
-# Gradio UI (No changes needed here)
+# Gradio UI (Updated with download button)
 with gr.Blocks(title="💬 Groq Chatbot") as demo:
     gr.Markdown("# 💬 Chatbot (Powered by Groq)")
 
@@ -100,6 +115,9 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
             with gr.Row():
                 stop_btn = gr.Button("Stop", scale=1)
                 clear_btn = gr.Button("Clear Chat", scale=1)
+                # --- MODIFICATION: Add the download button ---
+                download_btn = gr.DownloadButton("⬇️ Download Last Response", visible=False, scale=2)
+
 
         with gr.Column(scale=1):
             model_choice = gr.Radio(
@@ -120,16 +138,18 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
     inputs = [msg, chatbot, model_choice, instructions,
               temperature, max_tokens, effort]
     
-    outputs = [chatbot, msg, thoughts_box]
+    # --- MODIFICATION: Add download_btn to the outputs list ---
+    outputs = [chatbot, msg, thoughts_box, download_btn]
 
     e_submit = msg.submit(chat_with_groq, inputs, outputs)
     e_click = send_btn.click(chat_with_groq, inputs, outputs)
 
     stop_btn.click(fn=lambda: None, cancels=[e_submit, e_click])
 
+    # --- MODIFICATION: Update clear_btn to also hide the download button ---
     clear_btn.click(
-        lambda: ([], "*Reasoning from gpt-oss-120b will appear here...*"), 
-        outputs=[chatbot, thoughts_box], 
+        lambda: ([], "*Reasoning from gpt-oss-120b will appear here...*", gr.update(visible=False)), 
+        outputs=[chatbot, thoughts_box, download_btn], 
         cancels=[e_submit, e_click]
     )
 
