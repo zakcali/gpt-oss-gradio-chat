@@ -2,37 +2,49 @@ import os
 import gradio as gr
 from groq import Groq
 import time
+import tempfile  # --- MODIFICATION: Import the tempfile module
+import atexit    # --- MODIFICATION: Import atexit for cleanup on exit
 
-# Create a dedicated directory for temporary chat downloads
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMP_DIR = os.path.join(APP_DIR, "temp")
-os.makedirs(TEMP_DIR, exist_ok=True)
-print(f"Temporary chat logs will be saved in: {TEMP_DIR}")
+# --- MODIFICATION: Global list to track temporary files ---
+# This list will hold the paths of all generated chat logs for this session.
+temp_files_to_clean = []
+
+# --- MODIFICATION: Function to perform cleanup on exit ---
+def cleanup_temp_files():
+    """Iterates through the global list and deletes the tracked files."""
+    if not temp_files_to_clean:
+        return
+    print(f"\nCleaning up {len(temp_files_to_clean)} temporary files...")
+    for file_path in temp_files_to_clean:
+        try:
+            os.remove(file_path)
+            # print(f"  - Removed: {file_path}") # Uncomment for verbose logging
+        except FileNotFoundError:
+            # File might have been moved or deleted by other means
+            pass
+        except Exception as e:
+            # Catch other potential errors (e.g., permissions)
+            print(f"  - Error removing {file_path}: {e}")
+    print("Cleanup complete.")
+
+# --- MODIFICATION: Register the cleanup function to run on script exit ---
+# This will be called on normal exit and for most unhandled exceptions,
+# including KeyboardInterrupt from Ctrl+C.
+atexit.register(cleanup_temp_files)
+
+
+# --- MODIFICATION: Directory setup is no longer needed ---
+# The tempfile module will handle creating files in the OS's temporary directory.
+print("Temporary chat download files will be saved in the OS's default temp directory.")
+# --- END MODIFICATION ---
 
 # Initialize the Groq client (API key from environment variable)
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
 )
 
-def clear_temp_folder():
-    """Deletes all files in the TEMP_DIR and returns a status message."""
-    count = 0
-    try:
-        for filename in os.listdir(TEMP_DIR):
-            file_path = os.path.join(TEMP_DIR, filename)
-            # Make sure it's a file before trying to delete
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-                count += 1
-        
-        if count > 0:
-            return f"✅ Cleared {count} file(s) from the temp downloads directory."
-        else:
-            return "ℹ️ Temp downloads directory is already empty."
-            
-    except Exception as e:
-        print(f"Error clearing temp folder: {e}")
-        return f"❌ Error clearing temp folder: {e}"
+# --- MODIFICATION: The manual clear function is no longer needed ---
+# --- END MODIFICATION ---
 
 # Main chat function
 def chat_with_groq(message, history, model_choice, instructions,
@@ -102,14 +114,18 @@ def chat_with_groq(message, history, model_choice, instructions,
                 last_yield_time = now
                 yield history, None, reasoning_content, initial_download_update
 
-        timestamp = int(time.time())
-        base_filename = f"chat_response_{timestamp}.md"
-        # Create the full path inside the temporary directory
-        output_filepath = os.path.join(TEMP_DIR, base_filename)
+        # --- MODIFICATION: Use tempfile to create a secure temporary file ---
+        # Create a temporary markdown file to store the chat response.
+        # `delete=False` is crucial so Gradio can access it after this function returns.
+        # `mode="w"` and `encoding="utf-8"` ensure correct writing of text.
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".md", mode="w", encoding="utf-8") as temp_file:
+            output_filepath = temp_file.name
+            temp_file.write(full_content)
         
-        # Save the final content to the markdown file in the temp directory
-        with open(output_filepath, "w", encoding="utf-8") as f:
-            f.write(full_content)
+        # Track this file so it can be cleaned up when the app exits
+        temp_files_to_clean.append(output_filepath)
+        print(f"Created and tracking temp file: {output_filepath}")
+        # --- END MODIFICATION ---
         
         # Create the update object for the download button, pointing to the new path
         final_download_update = gr.update(visible=True, value=output_filepath)
@@ -135,9 +151,9 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
             with gr.Row():
                 stop_btn = gr.Button("Stop", scale=1)
                 clear_btn = gr.Button("Clear Chat", scale=1)
-                clear_temp_btn = gr.Button("🧹 Clear Downloads", scale=1)
-                download_btn = gr.DownloadButton("⬇️ Download Last Response", visible=False, scale=2)
-
+                # --- MODIFICATION: Removed the manual "Clear Downloads" button ---
+                download_btn = gr.DownloadButton("⬇️ Download Last Response", visible=False, scale=3)
+                # --- END MODIFICATION ---
 
         with gr.Column(scale=1):
             model_choice = gr.Radio(
@@ -171,15 +187,12 @@ with gr.Blocks(title="💬 Groq Chatbot") as demo:
         cancels=[e_submit, e_click]
     )
 
-    # Add event handler for the new clear temp button ---
-    # This will clear the temp folder and also hide the download button
-    clear_temp_btn.click(
-        fn=lambda: (clear_temp_folder(), gr.update(visible=False)),
-        inputs=None,
-        outputs=[thoughts_box, download_btn]
-    )
+    # --- MODIFICATION: Removed event handler for the deleted button ---
+    # --- END MODIFICATION ---
 
 demo.queue()
 
 if __name__ == "__main__":
+    print("Launching Gradio interface... Press Ctrl+C to exit.")
+    print("Temporary files for this session will be cleaned up automatically on exit.")
     demo.launch()
