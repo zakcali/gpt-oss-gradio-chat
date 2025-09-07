@@ -2,14 +2,13 @@ import os
 import gradio as gr
 from openai import OpenAI
 import time
-import tempfile  # --- MODIFICATION: Import the tempfile module
-import atexit    # --- MODIFICATION: Import atexit for cleanup on exit
+import tempfile  #  Import the tempfile module
+import atexit    #  Import atexit for cleanup on exit
 
-# --- MODIFICATION: Global list to track temporary files ---
 # This list will hold the paths of all generated chat logs for this session.
 temp_files_to_clean = []
 
-# --- MODIFICATION: Function to perform cleanup on exit ---
+# --- Function to perform cleanup on exit ---
 def cleanup_temp_files():
     """Iterates through the global list and deletes the tracked files."""
     if not temp_files_to_clean:
@@ -27,26 +26,19 @@ def cleanup_temp_files():
             print(f"  - Error removing {file_path}: {e}")
     print("Cleanup complete.")
 
-# --- MODIFICATION: Register the cleanup function to run on script exit ---
 # This will be called on normal exit and for most unhandled exceptions,
 # including KeyboardInterrupt from Ctrl+C.
 atexit.register(cleanup_temp_files)
 
 
-# --- MODIFICATION: Directory setup is no longer needed ---
 # The tempfile module will handle creating files in the OS's temporary directory.
 print("Temporary chat download files will be saved in the OS's default temp directory.")
-# --- END MODIFICATION ---
 
 # Initialize the OpenAI client to connect to a local server
 client = OpenAI(
     base_url="http://localhost:8000/v1",
     api_key="EMPTY"
 )
-
-# --- MODIFICATION: The manual clear function is no longer needed ---
-# --- END MODIFICATION ---
-
 
 def chat_with_openai(message, history, instructions,
                      temperature, max_tokens, effort):
@@ -106,7 +98,7 @@ def chat_with_openai(message, history, instructions,
                 last_yield_time = now
                 yield history, None, reasoning_content, initial_download_update
 
-        # --- MODIFICATION: Use tempfile to create a secure temporary file ---
+        # --- Use tempfile to create a secure temporary file ---
         # Create a temporary markdown file to store the chat response.
         with tempfile.NamedTemporaryFile(delete=False, suffix=".md", mode="w", encoding="utf-8") as temp_file:
             output_filepath = temp_file.name
@@ -115,7 +107,6 @@ def chat_with_openai(message, history, instructions,
         # Track this file so it can be cleaned up when the app exits
         temp_files_to_clean.append(output_filepath)
         print(f"Created and tracking temp file: {output_filepath}")
-        # --- END MODIFICATION ---
         
         final_download_update = gr.update(visible=True, value=output_filepath)
         
@@ -125,7 +116,6 @@ def chat_with_openai(message, history, instructions,
         error_message = f"❌ An error occurred: {str(e)}"
         history[-1]["content"] = error_message
         yield history, "", f"An error occurred: {e}", initial_download_update
-
 
 # --- Gradio UI  ---
 with gr.Blocks(title="💬 Local LLM Chatbot") as demo:
@@ -139,9 +129,7 @@ with gr.Blocks(title="💬 Local LLM Chatbot") as demo:
             with gr.Row():
                 stop_btn = gr.Button("Stop", scale=1)
                 clear_btn = gr.Button("Clear Chat", scale=1)
-                # --- MODIFICATION: Removed the manual "Clear Downloads" button ---
                 download_btn = gr.DownloadButton("⬇️ Download Last Response", visible=False, scale=3)
-                # --- END MODIFICATION ---
 
         with gr.Column(scale=1):
             gr.Markdown("### Model: `openai/gpt-oss-120b`")
@@ -166,13 +154,10 @@ with gr.Blocks(title="💬 Local LLM Chatbot") as demo:
         queue=False
     )
     
-    # --- MODIFICATION: Removed event handler for the deleted button ---
-    # --- END MODIFICATION ---
-
 demo.queue()
 
 if __name__ == "__main__":
-    # --- MODIFICATION: Updated print messages for clarity ---
+    # --- print messages for clarity ---
     print("Launching Gradio interface... Press Ctrl+C to exit.")
     print("Temporary files for this session will be cleaned up automatically on exit.")
     demo.launch(server_name="192.168.0.35", server_port=7860)
