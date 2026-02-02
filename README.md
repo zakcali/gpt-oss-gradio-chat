@@ -69,6 +69,9 @@ Displays reasoning_content in a separate box
 
 ## code migrated to Gradio 6.0
 
+```python
 # chatbot = gr.Chatbot(height=500, type="messages", show_copy_button=True)
 # NEW (Gradio 6.0)
 chatbot = gr.Chatbot(height=500, buttons=["copy"])
+```
+
